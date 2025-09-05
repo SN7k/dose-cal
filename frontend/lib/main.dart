@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// ======== SERVICES ========
-import 'screens/auth/data/auth_service.dart';
+// ======== PROVIDERS ========
+import 'providers/app_providers.dart';
 
 // ======== SCREENS ========
 import 'screens/auth/screens/login_screen.dart';
@@ -30,14 +31,14 @@ import 'screens/error_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const DoseCalApp());
+  runApp(const ProviderScope(child: DoseCalApp()));
 }
 
-class DoseCalApp extends StatelessWidget {
+class DoseCalApp extends ConsumerWidget {
   const DoseCalApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -145,86 +146,82 @@ class DoseCalApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, bool>>(
-      future: _checkAppStatus(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF0B1220),
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: Color(0xFF5B6BE1),
-                  ),
-                  SizedBox(height: 24),
-                  Text(
-                    'DoseCal',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF5B6BE1),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Medical Calculator',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch providers for authentication and onboarding status
+    final isLoggedInAsync = ref.watch(isLoggedInProvider);
+    final settingsNotifier = ref.watch(settingsProvider.notifier);
+
+    return FutureBuilder<String?>(
+      future: settingsNotifier.getSetting('onboarding_complete'),
+      builder: (context, onboardingSnapshot) {
+        if (onboardingSnapshot.connectionState == ConnectionState.waiting) {
+          return const _LoadingScreen();
         }
 
-        final status = snapshot.data ?? {'onboarding': false, 'loggedIn': false};
-        final onboardingComplete = status['onboarding'] ?? false;
-        final isLoggedIn = status['loggedIn'] ?? false;
-        
+        final onboardingComplete = onboardingSnapshot.data == 'true';
+
         if (!onboardingComplete) {
           return const OnboardingScreen();
-        } else if (isLoggedIn) {
-          return const DashboardScreen(); // Main app
-        } else {
-          return const LoginScreen();
         }
+
+        // Check login status
+        return isLoggedInAsync.when(
+          data: (isLoggedIn) {
+            if (isLoggedIn) {
+              return const DashboardScreen();
+            } else {
+              return const LoginScreen();
+            }
+          },
+          loading: () => const _LoadingScreen(),
+          error: (error, stackTrace) {
+            // On error, go to login
+            return const LoginScreen();
+          },
+        );
       },
     );
   }
+}
 
-  Future<Map<String, bool>> _checkAppStatus() async {
-    // Check onboarding status
-    final onboardingComplete = await AuthService.isOnboardingComplete();
-    
-    // Check login status only if onboarding is complete
-    bool isLoggedIn = false;
-    if (onboardingComplete) {
-      isLoggedIn = await AuthService.isLoggedIn();
-      if (isLoggedIn) {
-        final isSessionValid = await AuthService.isSessionValid();
-        if (!isSessionValid) {
-          // Session expired, sign out
-          await AuthService.signOut();
-          isLoggedIn = false;
-        } else {
-          // Refresh session
-          await AuthService.refreshSession();
-        }
-      }
-    }
-    
-    return {
-      'onboarding': onboardingComplete,
-      'loggedIn': isLoggedIn,
-    };
+class _LoadingScreen extends StatelessWidget {
+  const _LoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF0B1220),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              color: Color(0xFF5B6BE1),
+            ),
+            SizedBox(height: 24),
+            Text(
+              'DoseCal',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF5B6BE1),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Hospital Workspace',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

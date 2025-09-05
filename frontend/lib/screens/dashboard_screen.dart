@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
+
 import '../data/repository.dart';
 import 'auth/data/auth_service.dart';
 import 'dose_calculator.dart';
@@ -13,15 +15,26 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int currentIndex = 0;
+  final PageController _pageController = PageController();
+  int _pageIndex = 0; // 0-3 for actual pages
 
+  // 4 main tabs (middle 'Add' is not a tab)
   final List<Widget> _tabs = const [
     DoseCalculatorScreen(),
     FluidsCalculatorScreen(),
-    SizedBox.shrink(), // middle notch for FAB
     BloodCalculatorScreen(),
     GrowthCalculatorScreen(),
   ];
+
+  // Helper: Converts between PageView index and BottomBar index
+  int pageToBar(int page) => page < 2 ? page : page + 1;
+  int barToPage(int bar) => bar < 2 ? bar : bar - 1;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +45,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: const Color(0xFF0B1220),
       appBar: AppBar(
         title: Text(p == null ? 'Dose-Cal' : '${p.name} • ${p.id}'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       drawer: Drawer(
         backgroundColor: const Color(0xFF0B1220),
@@ -44,7 +59,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final name = user['name'] ?? 'Medical Professional';
                 final role = user['role'] ?? 'doctor';
                 final email = user['email'] ?? 'No email';
-                
                 return UserAccountsDrawerHeader(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -79,14 +93,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
             ),
             _item(context, Icons.people, 'Patient List', '/patients'),
-            _item(context, Icons.description, 'Discharge Summaries',
-                '/discharge'),
+            _item(context, Icons.description, 'Discharge Summaries', '/discharge'),
             const Divider(height: 1),
             _item(context, Icons.person, 'Profile', '/profile'),
             _item(context, Icons.settings, 'Settings', '/settings'),
             _item(context, Icons.info, 'App Info', '/appinfo'),
-            _item(
-                context, Icons.support_agent, 'Support / Contact', '/support'),
+            _item(context, Icons.support_agent, 'Support / Contact', '/support'),
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -99,34 +111,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-      body: IndexedStack(
-        index: currentIndex == 2 ? 0 : currentIndex,
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
         children: _tabs,
+        onPageChanged: (index) {
+          setState(() {
+            _pageIndex = index;
+          });
+        },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF5B6BE1),
-        icon: const Icon(Icons.add),
-        label: const Text('Add patient'),
-        onPressed: () => Navigator.pushNamed(context, '/add_patient'),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF0B1220),
-        currentIndex: currentIndex,
-        onTap: (i) => setState(() => currentIndex = i),
-        selectedItemColor: const Color(0xFF5B6BE1),
-        unselectedItemColor: Colors.white54,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.medication), label: 'Dose'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.water_drop), label: 'Fluids'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.bloodtype), label: 'Blood'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.monitor_weight), label: 'Growth'),
+      bottomNavigationBar: StylishBottomBar(
+        items: [
+          BottomBarItem(
+              icon: const Icon(Icons.medication),
+              title: const Text('Dose'),
+              backgroundColor: const Color(0xFF5B6BE1)),
+          BottomBarItem(
+              icon: const Icon(Icons.water_drop),
+              title: const Text('Fluids'),
+              backgroundColor: const Color(0xFF5B6BE1)),
+          BottomBarItem(
+              icon: const Icon(Icons.add),
+              title: const Text('Add'),
+              backgroundColor: const Color(0xFF5B6BE1)),
+          BottomBarItem(
+              icon: const Icon(Icons.bloodtype),
+              title: const Text('Blood'),
+              backgroundColor: const Color(0xFF5B6BE1)),
+          BottomBarItem(
+              icon: const Icon(Icons.monitor_weight),
+              title: const Text('Growth'),
+              backgroundColor: const Color(0xFF5B6BE1)),
         ],
+        option: BubbleBarOptions(
+          barStyle: BubbleBarStyle.horizontal,
+          bubbleFillStyle: BubbleFillStyle.fill,
+          opacity: 0.3,
+        ),
+        backgroundColor: const Color(0xFF0B1220),
+        currentIndex: pageToBar(_pageIndex),
+        onTap: (barIndex) {
+          if (barIndex == 2) {
+            Navigator.pushNamed(context, '/add_patient');
+            return;
+          }
+          int pageIndex = barToPage(barIndex);
+          _pageController.animateToPage(
+            pageIndex,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.ease,
+          );
+          setState(() {
+            _pageIndex = pageIndex;
+          });
+        },
+        hasNotch: true,
+        fabLocation: StylishBarFabLocation.center,
       ),
     );
   }
@@ -162,9 +203,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.of(context).pop(); // Close dialog
-                
-                // Show loading indicator
+                Navigator.of(context).pop();
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -174,16 +213,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 );
-                
-                // Sign out
                 await AuthService.signOut();
-                
-                // Navigate to sign in screen and clear navigation stack
                 if (context.mounted) {
-                  Navigator.of(context).pop(); // Close loading dialog
+                  Navigator.of(context).pop();
                   Navigator.of(context).pushNamedAndRemoveUntil(
                     '/login',
-                    (route) => false,
+                        (route) => false,
                   );
                 }
               },
