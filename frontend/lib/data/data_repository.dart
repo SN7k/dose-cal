@@ -100,6 +100,41 @@ class DataRepository {
     return await (db.select(db.patients)..where((p) => p.hospitalId.equals(hospitalId))).get();
   }
 
+  Future<List<Patient>> searchPatients(String query) async {
+    final db = await database;
+    final searchQuery = '%${query.toLowerCase()}%';
+    
+    return await (db.select(db.patients)
+      ..where((p) => 
+        p.fullName.lower().like(searchQuery) |
+        p.initials.lower().like(searchQuery) |
+        p.mrn.lower().like(searchQuery) |
+        p.id.lower().like(searchQuery)
+      )
+      ..orderBy([(p) => OrderingTerm.desc(p.createdAt)])
+    ).get();
+  }
+
+  Future<List<Patient>> searchPatientsForCurrentUser(String query) async {
+    final user = await getCurrentUser();
+    if (user?.hospitalId != null) {
+      final db = await database;
+      final searchQuery = '%${query.toLowerCase()}%';
+      
+      return await (db.select(db.patients)
+        ..where((p) => 
+          p.hospitalId.equals(user!.hospitalId!) &
+          (p.fullName.lower().like(searchQuery) |
+           p.initials.lower().like(searchQuery) |
+           p.mrn.lower().like(searchQuery) |
+           p.id.lower().like(searchQuery))
+        )
+        ..orderBy([(p) => OrderingTerm.desc(p.createdAt)])
+      ).get();
+    }
+    return [];
+  }
+
   Future<Patient> insertPatient(PatientsCompanion patient) async {
     final db = await database;
     final patientId = await db.into(db.patients).insert(patient);

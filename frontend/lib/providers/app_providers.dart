@@ -51,6 +51,15 @@ final patientProvider = FutureProvider.family<Patient?, String>((ref, patientId)
   return await repository.getPatient(patientId);
 });
 
+// Patient search provider
+final patientSearchProvider = FutureProvider.family<List<Patient>, String>((ref, query) async {
+  final repository = ref.read(dataRepositoryProvider);
+  if (query.trim().isEmpty) {
+    return await repository.getPatientsForCurrentUser();
+  }
+  return await repository.searchPatientsForCurrentUser(query.trim());
+});
+
 // Case sheet provider
 final caseSheetProvider = FutureProvider.family<CaseSheet?, String>((ref, patientId) async {
   final repository = ref.read(dataRepositoryProvider);
