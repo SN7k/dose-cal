@@ -12,6 +12,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -19,7 +21,41 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onEmailSubmitted() {
+    // Validate email field before moving to password
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your email or mobile number'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    if (!email.contains('@') && !RegExp(r'^\d{10}$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid email or 10-digit mobile number'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Move focus to password field
+    _passwordFocusNode.requestFocus();
+  }
+
+  void _onPasswordSubmitted() {
+    // Automatically attempt login when password is submitted
+    _signIn();
   }
 
   Future<void> _signIn() async {
@@ -163,7 +199,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: TextFormField(
                     controller: _emailController,
+                    focusNode: _emailFocusNode,
                     keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(
                       labelText: 'Email or Mobile',
@@ -172,6 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     ),
+                    onFieldSubmitted: (_) => _onEmailSubmitted(),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Please enter your email or mobile';
@@ -193,7 +232,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: TextFormField(
                     controller: _passwordController,
+                    focusNode: _passwordFocusNode,
                     obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.done,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: 'Password',
@@ -211,6 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     ),
+                    onFieldSubmitted: (_) => _onPasswordSubmitted(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your password';

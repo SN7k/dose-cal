@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart';
 import '../data/data_repository.dart';
 import '../data/local_db.dart';
 import '../services/background_sync_service.dart';
@@ -216,13 +217,13 @@ class PatientNotifier extends StateNotifier<AsyncValue<List<Patient>>> {
     try {
       final patientId = await _repository.createPatient(
         initials: initials,
-        fullName: fullName,
-        dob: dob,
-        sex: sex,
-        weightKg: weightKg,
-        heightCm: heightCm,
-        allergies: allergies,
-        mrn: mrn,
+        fullName: fullName ?? '',
+        dob: dob ?? DateTime.now(),
+        sex: sex ?? '',
+        weightKg: weightKg ?? 0.0,
+        heightCm: heightCm ?? 0.0,
+        allergies: allergies ?? '',
+        mrn: mrn ?? '',
       );
       
       // Refresh patients list
@@ -246,17 +247,19 @@ class PatientNotifier extends StateNotifier<AsyncValue<List<Patient>>> {
     String? mrn,
   }) async {
     try {
-      await _repository.updatePatient(
-        patientId,
-        initials: initials,
-        fullName: fullName,
-        dob: dob,
-        sex: sex,
-        weightKg: weightKg,
-        heightCm: heightCm,
-        allergies: allergies,
-        mrn: mrn,
+      final patientCompanion = PatientsCompanion(
+        initials: Value(initials ?? ''),
+        fullName: Value(fullName ?? ''),
+        dob: Value(dob ?? DateTime.now()),
+        sex: Value(sex ?? ''),
+        weightKg: Value(weightKg ?? 0.0),
+        heightCm: Value(heightCm ?? 0.0),
+        allergies: Value(allergies ?? ''),
+        mrn: Value(mrn ?? ''),
+        updatedAt: Value(DateTime.now()),
       );
+      
+      await _repository.updatePatient(patientId, patientCompanion);
       
       // Refresh patients list and specific patient
       _loadPatients();
@@ -277,10 +280,9 @@ final patientNotifierProvider = StateNotifierProvider<PatientNotifier, AsyncValu
 // Case management actions
 class CaseNotifier extends StateNotifier<AsyncValue<List<CaseUpdate>>> {
   final DataRepository _repository;
-  final Ref _ref;
   final String caseId;
   
-  CaseNotifier(this._repository, this._ref, this.caseId) : super(const AsyncValue.loading()) {
+  CaseNotifier(this._repository, this.caseId) : super(const AsyncValue.loading()) {
     _loadCaseUpdates();
   }
 
@@ -295,10 +297,7 @@ class CaseNotifier extends StateNotifier<AsyncValue<List<CaseUpdate>>> {
 
   Future<bool> addUpdate(String details) async {
     try {
-      await _repository.addCaseUpdate(
-        caseId: caseId,
-        details: details,
-      );
+      await _repository.addCaseUpdate(caseId, details, 'update');
       
       // Refresh case updates
       _loadCaseUpdates();
@@ -316,5 +315,5 @@ class CaseNotifier extends StateNotifier<AsyncValue<List<CaseUpdate>>> {
 
 final caseNotifierProvider = StateNotifierProvider.family<CaseNotifier, AsyncValue<List<CaseUpdate>>, String>((ref, caseId) {
   final repository = ref.read(dataRepositoryProvider);
-  return CaseNotifier(repository, ref, caseId);
+  return CaseNotifier(repository, caseId);
 });

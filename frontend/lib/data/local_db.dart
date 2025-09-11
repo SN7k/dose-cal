@@ -206,10 +206,27 @@ class LocalDatabase extends _$LocalDatabase {
   LocalDatabase._internal(super.e);
 
   static LocalDatabase? _instance;
+  static Future<LocalDatabase>? _initializeFuture;
 
   static Future<LocalDatabase> getInstance() async {
+    // If instance already exists, return it
     if (_instance != null) return _instance!;
     
+    // If initialization is already in progress, wait for it
+    if (_initializeFuture != null) return await _initializeFuture!;
+    
+    // Start initialization
+    _initializeFuture = _initialize();
+    
+    try {
+      _instance = await _initializeFuture!;
+      return _instance!;
+    } finally {
+      _initializeFuture = null;
+    }
+  }
+  
+  static Future<LocalDatabase> _initialize() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'dosecal_encrypted.sqlite'));
     
@@ -229,8 +246,7 @@ class LocalDatabase extends _$LocalDatabase {
       },
     );
     
-    _instance = LocalDatabase._internal(executor);
-    return _instance!;
+    return LocalDatabase._internal(executor);
   }
 
   @override
