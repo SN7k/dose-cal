@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/repository.dart';
 import '../data/local_db.dart';
 import '../providers/app_providers.dart';
+import '../widgets/custom_animated_bottom_nav.dart';
 import 'auth/data/auth_service.dart';
 import 'dose_calculator.dart';
 import 'blood_calculator.dart';
@@ -18,8 +19,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _currentIndex = 0;
 
   void _onTabTapped(int index) {
-    // Prevent selection of the middle placeholder tab
-    if (index == 2) return;
     setState(() {
       _currentIndex = index;
     });
@@ -29,11 +28,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final repo = Repo();
     final p = repo.currentPatient;
-
-    // Simplified logic to get the correct body index.
-    // Skips index 2.
-    int bodyIndex = _currentIndex > 2 ? _currentIndex -1 : _currentIndex;
-
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1220),
@@ -109,7 +103,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
       body: IndexedStack(
-        index: bodyIndex,
+        index: _currentIndex,
         children: const [
            _HomeScreen(),
            DoseCalculatorScreen(),
@@ -117,26 +111,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
            GrowthCalculatorScreen(),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF5B6BE1),
-        onPressed: () => Navigator.pushNamed(context, '/add_patient'),
-        child: const Icon(Icons.add),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF0B1220),
+      bottomNavigationBar: CustomAnimatedBottomNav(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
-        selectedItemColor: const Color(0xFF5B6BE1),
-        unselectedItemColor: Colors.white54,
-        type: BottomNavigationBarType.fixed,
+        centerFAB: true,
+        floatingActionButton: const Icon(Icons.add, color: Colors.white),
+        onFloatingActionButtonPressed: () => Navigator.pushNamed(context, '/add_patient'),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.medication), label: 'Dose'),
-          BottomNavigationBarItem(icon: SizedBox.shrink(), label: ''), // Placeholder
-          BottomNavigationBarItem(icon: Icon(Icons.bloodtype), label: 'Blood'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.monitor_weight), label: 'Growth'),
+          BottomNavItem(icon: Icons.home, label: 'Home'),
+          BottomNavItem(icon: Icons.medication, label: 'Dose'),
+          BottomNavItem(icon: Icons.bloodtype, label: 'Blood'),
+          BottomNavItem(icon: Icons.monitor_weight, label: 'Growth'),
         ],
       ),
     );
